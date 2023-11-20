@@ -1,0 +1,267 @@
+/* --------------------------------------------------------------------------- */
+/* ELM DEVELOPMENT SERVER STYLES
+/* --------------------------------------------------------------------------- */
+
+[data-elm-hot="true"] {
+  height: inherit;
+}
+
+/* --------------------------------------------------------------------------- */
+/* RESET PADDING AND BOX-SIZING */
+/* --------------------------------------------------------------------------- */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Arial, Helvetica, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------- */
+/* STYLED DEFAULTS
+/* --------------------------------------------------------------------------- */
+
+input, select {
+  padding: 5px;
+  font-family: inherit;
+}
+
+select {
+  font-size: 10pt;
+}
+
+input[type="text"] {
+  font-size: 10pt;
+  padding: 6px 8px;
+}
+
+button {
+  background: #d1d5db;
+  font-family: inherit;
+  font-size: 10pt;
+  color: #111827;
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: none;
+  border-bottom: 2px solid #9ca3af;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-bottom: 4px solid #9ca3af;
+  margin-top: 0px;
+}
+
+button:active {
+  border-bottom: 0px;
+  margin-top: 4px;
+}
+
+button.selected {
+  border-bottom: 0px;
+  margin-top: 4px;
+  background: #6b7280;
+  color: white;
+}
+
+.screen {
+  background-color: #f1f5f9;
+}
+
+
+/* --------------------------------------------------------------------------- */
+/* SETTINGS SCREEN COMPONENT-SPECIFIC STYLES
+/* --------------------------------------------------------------------------- */
+
+#settings-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#settings-modal {
+  padding: 1rem 2rem 2rem 2rem;
+  width: 600px;
+  background: white;
+  position: relative;
+  border-radius: 2px;
+  border: 1px solid #94a3b8;
+  border-top: 5px solid #64748b;
+}
+
+#settings-modal::after {
+  content: "";
+  position: absolute;
+  top: 0px;
+  left: 0;
+  background: #64748b;
+  border-top: 7px solid #64748b;
+  border-left: 7px solid #64748b;
+  border-bottom: 7px solid white;
+  border-right: 7px solid white;
+}
+
+#settings-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #94a3b8;
+}
+
+#settings-modal-header-title, #settings-modal-header-team {
+  margin: 0;
+  padding: 0;
+}
+
+#settings-modal-header-title {
+  font-size: 1.5em;
+  font-weight: bold;
+  letter-spacing: -1px;
+  text-transform: uppercase;
+}
+
+#settings-modal-header-team {
+  font-size: 0.8em;
+  color: #777;
+}
+
+#settings-modal-intro {
+  margin: 1rem 0;
+}
+
+#settings-modal-body {
+  margin-top: 1.75rem;
+  margin-bottom: 2.5rem;
+}
+
+.setting-picker-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+}
+
+.setting-picker-item-label {
+  font-size: 0.7em;
+  color: #475569;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+}
+
+.setting-picker-item-input-container {
+  border: 1px solid #94a3b8;
+  border-radius: 1px;
+  display: flex;
+}
+
+.setting-picker-item-input-int-range, .setting-picker-item-input-float-range {
+  margin: 0 1rem;
+  flex: 1;
+}
+
+.setting-picker-item-input-value {
+  margin: 0 1rem;
+  display: flex;
+  text-align: center;
+  align-items: center;
+}
+
+.setting-picker-item-input-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.setting-picker-item-button {
+  flex: 1;
+}
+
+#settings-modal-footer {
+  display: flex;
+}
+
+#start-game-button {
+  background-color: #333;
+  color: white;
+  border-color: #000; 
+  flex: 1;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+/* --------------------------------------------------------------------------- */
+/* GAME SCREEN COMPONENT-SPECIFIC STYLES
+/* --------------------------------------------------------------------------- */
+
+#gameplay-screen {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#restart-button-container {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+}
+
+#restart-button {
+  border: 0;
+  margin: 0;
+  background: #94a3b8;
+  color: white;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+button#restart-button:hover {
+  border: 0;
+  margin: 0;
+  background: #475569;
+}
+
+button#restart-button:active {
+  border: 0;
+  margin: 0;
+}
+
+#game-screen-container {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  min-width: 640px;
+  border: 1px solid #64748b;
+  padding: 2rem;
+  border: 1px solid 
+}
+
+#counter-value {
+  text-align: center;
+  font-size: 7rem;
+}
+
+#counter-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+#counter-buttons button {
+  font-size: 5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  width: 8rem;
+  height: 8rem;
+}

@@ -1,0 +1,39 @@
+<!-- 
+    This file is used by both the live development server and as the entrypoint
+    for the final build (this file will be copied to the build folder by the
+    build script).
+ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="theme-color" content="#000000">
+
+    <!-- If you've made extra css files in the `src` folder, then you need to add them below as well for your production below. -->
+    <link href="main.css" rel="stylesheet">
+
+    <!-- Do not change this line: this is what loads your code (as your Elm code gets compiled to `main.js`)-->
+    <script src="main.js"></script>
+
+    <!-- If you would like, you can change the title to something more descriptive (e.g. your game name) -->
+    <title>Game Window</title>
+
+</head>
+<body>
+
+    <!-- If your game is completely in Elm, don't change anything below. -->
+    <!-- If you use more advanced features of Elm (e.g. ports), then you might have to modify this. -->
+    <noscript>
+        You need to enable JavaScript to run this app.
+    </noscript>
+    <div id="root"></div>
+    <script>
+    var app = Elm.Main.init({
+        node: document.getElementById('root')
+    });
+    </script>
+
+</body>
+</html>
