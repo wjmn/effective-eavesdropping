@@ -142,10 +142,26 @@ button.selected {
   margin-bottom: 2.5rem;
 }
 
+#settings-picker {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+
 .setting-picker-item {
   display: flex;
   flex-direction: column;
+  margin: 0;
   margin-bottom: 0.75rem;
+  width: 100%;
+}
+
+.setting-picker-item.half-width {
+  width: 47.5%;
+}
+
+.setting-picker-item.half-width.right {
+  margin-left: 5%;
 }
 
 .setting-picker-item-label {
@@ -197,6 +213,25 @@ button.selected {
 }
 
 /* --------------------------------------------------------------------------- */
+/* ANIMATIONS
+/* --------------------------------------------------------------------------- */
+
+@keyframes phase-rise-up {
+  0% {
+    transform: translateY(0%);
+  }
+
+  90% {
+    transform: translateY(0%);
+  }
+
+  100% {
+    transform: translateY(-150%);
+  }
+
+}
+
+/* --------------------------------------------------------------------------- */
 /* GAME SCREEN COMPONENT-SPECIFIC STYLES
 /* --------------------------------------------------------------------------- */
 
@@ -234,34 +269,247 @@ button#restart-button:active {
   margin: 0;
 }
 
+.screen-container, .board-container, .phase {
+  height: 100%;
+  width: 100%;
+}
+
+.phase-transition {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+#good-phase-transition-card {
+  animation-name: phase-rise-up;
+  animation-duration: 5s;
+  transform: translateY(-150%);
+  background: black;
+  color: white;
+}
+
+#evil-phase-transition-card {
+  animation-name: phase-rise-up;
+  animation-duration: 5s;
+  transform: translateY(-150%);
+  background: black;
+  color: white;
+}
+
 #game-screen-container {
   display: flex;
-  flex-direction: column;
   background: white;
   min-width: 640px;
   border: 1px solid #64748b;
-  padding: 2rem;
-  border: 1px solid 
+  width: 80vh;
+  max-width: 80vh;
+  height: 80vh;
+  max-height: 80vw
 }
 
-#counter-value {
+.board-container {
+  padding: 1rem;
+}
+
+#board-background {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  opacity: 0.4;
+}
+
+.phase {
+  position: relative;
+}
+
+.status {
+  position: absolute;
+  top: 0;
+  left: 105%;
+  font-size: 0.9em;
+  width: 20%;
+  border: 1px solid black;
+  padding: 1rem;
+}
+
+.board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.board-layer {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+}
+
+.heatmap-container {
+  display: none;
+}
+
+.heatmap-container.is-visible {
+  display: block;
+}
+
+.heatmap {
+  height: 100%;
+  width: 100%;
+  display: grid;
+}
+
+.evil-member {
+  position: absolute;
+  /* border: 1px solid black; */
+  border-radius: 99999px;
+  background: grey;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 5px;
+  z-index: 0;
+}
+
+.evil-member.special {
+  z-index: 1;
+}
+
+.evil-member > svg {
+  height: 100%;
+  width: 100%;
+}
+
+
+.evil-member.included {
+  border: 2px solid blue;
+}
+
+.evil-member.cursor-included {
+  transform: scale(1.5);
+  border: 1px solid yellow;
+}
+
+.evil-member.cursor-included.special {
+  transform: scale(4);
+}
+
+.spy {
+  position: absolute;
+  border: 1px solid black;
+  border-radius: 99999999px;
+  background: orange;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 5px;
+}
+
+.spy-circle {
+  position: absolute;
+  border-radius: 999999999px;
+  border: 1px solid blue;
+}
+
+.spy-circle.detected {
+  display: none;
+}
+
+.spy.detected {
+  background: transparent;
+  border: none;
+
+}
+
+.spy.detected::after {
+  content: "☒";
+  font-size: 1.2rem;
+  color: red;
+}
+
+
+.device {
+  position: absolute;
+  border: 1px solid black;
+  border-radius: 99999999px;
+  background: green;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 5px;
+}
+
+.device-circle {
+  position: absolute;
+  border-radius: 999999999px;
+  border: 1px solid green;
+}
+
+.cursor-hover-circle, .cursor-hover-point {
+  position: absolute;
+}
+
+.cursor-hover-point {
+  position: absolute;
+  border: 1px solid black;
+  border-radius: 99999px;
+  z-index: 20;
+}
+
+.cursor-hover-point-text {
+  position: absolute;
+  width: 30px;
+  height: 24px;
+  bottom: 14px;
+  left: -12px;
   text-align: center;
-  font-size: 7rem;
-}
-
-#counter-buttons {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-}
-
-#counter-buttons button {
-  font-size: 5rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   font-weight: bold;
-  width: 8rem;
-  height: 8rem;
+  background: black;
+  color: white;
+  border-radius: 2px;
 }
+
+.cursor-hover-point-text::after {
+  content: ' ';
+  position: absolute;
+  top: 24px;
+  left: 10px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid black;
+}
+
+.cursor-hover-circle {
+  position: absolute;
+  border: 1px solid black;
+  border-radius: 99999px;
+}
+
+.good-cursor .cursor-hover-circle {
+  background: rgba(0, 0, 255, 0.2);
+}
+
+#attached-cursor-layer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+}
+
+
+
+

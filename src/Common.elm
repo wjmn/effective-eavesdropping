@@ -37,6 +37,21 @@ type Status
     = Playing
     | Complete Outcome
 
+{-| A coordinate on the board. -}
+type alias Coord = 
+    { x : Float
+    , y : Float }
+
+{-| The size of a board -}
+type alias BoardSize = Float
+
+{-| An integer coordinate on a heatmap (top left corner). -}
+type alias Square = 
+    { x : Int 
+    , y : Int }
+
+type alias HeatmapSize = Int
+
 
 --------------------------------------------------------------------------------
 -- CONVENIENCE FUNCTIONS
@@ -53,3 +68,28 @@ opponent player =
 
         Player2 ->
             Player1
+
+{-| Convert a square to an index given a heatmap size. -}
+squareToIndex : HeatmapSize -> Square -> Int
+squareToIndex heatmapSize coord =
+    coord.x + coord.y * heatmapSize
+
+{-| Convert an index to a square given a heatmap size. -}
+indexToCoord : HeatmapSize -> Int -> Square
+indexToCoord heatmapSize index =
+    { x = index |> modBy heatmapSize
+    , y = index // heatmapSize
+    }
+
+{-| Find the euclidean distance between two coords -}
+distance : Coord -> Coord -> Float
+distance a b = 
+    let
+        dx = a.x - b.x
+        dy = a.y - b.y
+    in
+        sqrt (dx * dx + dy * dy)
+
+strictWithin : BoardSize -> Coord -> Bool 
+strictWithin boardSize coord = 
+    coord.x > 0 && coord.x < boardSize && coord.y > 0 && coord.y < boardSize
