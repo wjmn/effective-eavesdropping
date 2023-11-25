@@ -151,7 +151,7 @@ TODO: modify this function to include your own intro text.
 introText : Html Msg
 introText =
     div [ class "intro-text" ]
-        [ p [] [ text "This is the blank game template. Fill this part in with your own intro text." ] ]
+        [ p [] [ text "Effective Eavesdropping is a two-player strategy game between GOOD and EVIL. GOOD aims to place spies at EVIL's banquet to maximise the people within their spies' listening radius. EVIL aims to place anti-spy devices to, ahem, eliminate spies who hide among them. Who will prevail?" ] ]
 
 
 {-| The view function for the application. This function mostly just routes the view

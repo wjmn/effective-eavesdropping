@@ -63,7 +63,7 @@ default : Settings
 default =
     { playMode = HumanVsHuman
     , computerDifficulty = Easy
-    , numEvilMembers = 200
+    , numEvilMembers = 250
     , numSpies = 10
     , spyRadius = 10.0
     , numDevices = 10

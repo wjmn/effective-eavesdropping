@@ -401,6 +401,24 @@ inRadiusCoord : Coord -> Float -> Coord -> Bool
 inRadiusCoord center radius other =
     distance center other < radius
 
+coordsApproxInRadius : Coord -> Float -> List Coord 
+coordsApproxInRadius center radius = 
+    List.range (round (center.x - radius)) (round (center.x + radius))
+        |> List.map (\x -> List.range (round (center.y - radius)) (round (center.y + radius))
+            |> List.map (\y -> Coord (toFloat x) (toFloat y)))
+        |> List.concat
+
+directNeighbours : Coord -> List Coord 
+directNeighbours center = 
+    [ Coord (center.x + 1) (center.y + 1)
+    , Coord (center.x + 1) center.y
+    , Coord (center.x + 1) (center.y - 1)
+    , Coord center.x (center.y + 1)
+    , Coord center.x (center.y - 1)
+    , Coord (center.x - 1) (center.y + 1)
+    , Coord (center.x - 1) center.y
+    , Coord (center.x - 1) (center.y - 1)
+    ]
 
 {-| Return the sum of the values of all the evil members within the spy's radius.
 -}
@@ -551,7 +569,7 @@ update msg game =
                         EvilPhase newData ->
                             case game.settings.playMode of 
                                 HumanVsComputer -> 
-                                    newGame |> withCmd (Cmd.batch [Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"), Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 4000)])
+                                    newGame |> withCmd (Cmd.batch [Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"), Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 3500)])
                                 _ -> 
                                     newGame |> withCmd (Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"))
 
@@ -687,7 +705,7 @@ update msg game =
             in
             case newGame.phase of
                 EvilPhase newData ->
-                    newGame |> withCmd (Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 1000))
+                    newGame |> withCmd (Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 800))
 
                 _ ->
                     newGame |> withCmd Cmd.none
@@ -726,14 +744,14 @@ makeComputerMoveEasy : Game -> Cmd Msg
 makeComputerMoveEasy game =  
     case game.phase of 
         GoodPhase data -> 
-            Random.float 0.0 defaultBoardSize
-                |> Random.map2 Coord (Random.float 0.0 defaultBoardSize)
+            Random.float 4.0 (defaultBoardSize - 4.0)
+                |> Random.map2 Coord (Random.float 4.0 (defaultBoardSize - 4.0))
                 |> Random.map PlaceSpy
                 |> Random.generate ReceivedComputerMove
 
         EvilPhase data -> 
-            Random.float 0.0 defaultBoardSize
-                |> Random.map2 Coord (Random.float 0.0 defaultBoardSize)
+            Random.float 4.0 (defaultBoardSize - 4.0)
+                |> Random.map2 Coord (Random.float 4.0 (defaultBoardSize - 4.0))
                 |> Random.map PlaceAntispyDevice
                 |> Random.generate ReceivedComputerMove
 
@@ -741,18 +759,34 @@ makeComputerMoveEasy game =
             Cmd.none
 
 {-| For the hard player:
-- GOOD Phase: Choose randomly from the top boardSize**2 / numSpies locations on the heatmap
-- EVIL Phase: Choose randomly from the top boardSize ** 2 / numDevices locations on the heatmap
 -}
 makeComputerMoveHard : Game -> Cmd Msg
 makeComputerMoveHard game = 
     case game.phase of 
         GoodPhase data -> 
+            let
+                heatmapArray = Array.fromList data.heatmap
+   
+                modifiedScore (index, heatmapValue) = 
+                    let
+                        coord = 
+                            Coord (toFloat (index |> modBy defaultHeatmapSize) + 0.5) (toFloat (index // defaultHeatmapSize) + 0.5)
+
+                        spiesInRadius = 
+                            data.spies 
+                            |> List.filter (\spy -> inRadiusCoord coord (game.settings.spyRadius *2) spy)
+                            |> List.length
+        
+ 
+                    in
+                    heatmapValue - spiesInRadius * 1000
+
+            in
             data.heatmap
                 |> List.indexedMap (\index value -> (index, value))
-                |> List.sortBy Tuple.second
+                |> List.sortBy modifiedScore
                 |> List.reverse
-                |> List.take (round  (defaultBoardSize * defaultBoardSize / toFloat game.settings.numSpies))
+                |> List.take 8
                 |> List.map Tuple.first
                 |> Random.Extra.sample 
                 |> Random.map (Maybe.withDefault 0)
@@ -760,11 +794,45 @@ makeComputerMoveHard game =
                 |> Random.map PlaceSpy
                 |> Random.generate ReceivedComputerMove
         EvilPhase data -> 
+            let
+                heatmapArray = Array.fromList data.heatmap
+
+                modifiedScore (index, heatmapValue) = 
+                    let
+                        coord = 
+                            Coord (toFloat (index |> modBy defaultHeatmapSize) + 0.5) (toFloat (index // defaultHeatmapSize) + 0.5)
+
+                        neighbours = directNeighbours coord
+                        neighbourHeatmapValueSum = 
+                                neighbours
+                                    |> List.map (\neighbour -> Array.get (squareToIndex defaultHeatmapSize (Square (neighbour.x - 0.5 |> round) (neighbour.y - 0.5 |> round))) heatmapArray |> Maybe.withDefault 0)
+                                    |> List.sum
+
+                        antispyDevicesInRadius = 
+                            data.antispyDevices 
+                            |> List.filter (\antispyDevice -> inRadiusCoord coord (game.settings.deviceRadius * 2) antispyDevice)
+                            |> List.length
+
+                        distanceFromDetectedSpies =
+                            data.detectedSpies
+                                |> List.map (\spy -> distance spy coord)
+                                |> List.minimum
+                                |> Maybe.withDefault 0
+                        greaterThanSpyRadius = 
+                            if distanceFromDetectedSpies > game.settings.spyRadius * 2 then 
+                                100
+                            else 
+                                0
+ 
+                    in
+                    heatmapValue + neighbourHeatmapValueSum + round (distanceFromDetectedSpies) + greaterThanSpyRadius - antispyDevicesInRadius * 1000
+            in
+            
             data.heatmap
                 |> List.indexedMap (\index value -> (index, value))
-                |> List.sortBy Tuple.second
+                |> List.sortBy modifiedScore
                 |> List.reverse
-                |> List.take (round (defaultBoardSize * defaultBoardSize / toFloat game.settings.numSpies))
+                |> List.take 5
                 |> List.map Tuple.first
                 |> Random.Extra.sample 
                 |> Random.map (Maybe.withDefault 0)
@@ -892,7 +960,7 @@ viewGoodPhaseBoard game data =
             -- The cursor layer
             ]
         , div [ id "good-phase-transition-card", class "phase-transition", class goodPhaseExtraClass] [ h1 [] [ text "GOOD Phase" ], div [] [ h2 [] [ text "GOOD: Place your spies!" ], h2 [] [ text "EVIL: Look away!" ] ], div [ class "small" ] [ text "The phase will start in 3 seconds." ] ]
-        , div [ id "good-phase-computer-card", class "phase-transition", class goodPhaseExtraClass] [ h1 [] [ text "GOOD Phase" ], div [] [ h2 [] [ text "GOOD: Computer is placing its spies!" ], h2 [] [ text "EVIL: Look away!" ] ], div [ class "small" ] [ text "" ] ]
+        , div [ id "good-phase-computer-card", class "phase-transition", class goodPhaseExtraClass] [ h1 [] [ text "GOOD Phase" ], div [] [ h2 [] [ text "GOOD: Computer is placing its spies!" ]], div [ class "small" ] [ text "" ] ]
         ]
 
 
