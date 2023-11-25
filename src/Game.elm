@@ -21,7 +21,6 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Lazy
-import Icons
 import Json.Decode as Decode exposing (Decoder)
 import List exposing (..)
 import List.Extra
@@ -30,7 +29,6 @@ import Random exposing (Generator)
 import Random.Char exposing (special)
 import Settings exposing (..)
 import String exposing (left)
-import Svg
 import Task
 import Random.Extra
 
@@ -551,7 +549,11 @@ update msg game =
                     in
                     case newGame.phase of
                         EvilPhase newData ->
-                            newGame |> withCmd (Cmd.batch [Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"), Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 4000)])
+                            case game.settings.playMode of 
+                                HumanVsComputer -> 
+                                    newGame |> withCmd (Cmd.batch [Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"), Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 4000)])
+                                _ -> 
+                                    newGame |> withCmd (Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"))
 
                         _ ->
                             newGame |> withCmd Cmd.none
@@ -788,16 +790,29 @@ can be sent from.
 view : Game -> Html Msg
 view game =
     let
-        ( phaseView, cursorMsg ) =
-            case game.phase of
+        phaseView =
+            case (game.phase) of
                 GoodPhase goodData ->
-                    ( viewGoodPhase game goodData, GoodMovedMouse )
+                    ( viewGoodPhase game goodData)
 
                 EvilPhase evilData ->
-                    ( viewEvilPhase game evilData, EvilMovedMouse )
+                    ( viewEvilPhase game evilData)
 
                 Complete evilData finalScore ->
-                    ( viewComplete game evilData finalScore, \_ -> NoOp )
+                    ( viewComplete game evilData finalScore)
+        cursorMsg = 
+            case (game.phase, game.settings.playMode) of 
+                (GoodPhase _, HumanVsHuman) -> 
+                    GoodMovedMouse
+                (EvilPhase _, HumanVsHuman) -> 
+                    EvilMovedMouse
+                (GoodPhase _, HumanVsComputer) -> 
+                    GoodMovedMouse
+                (EvilPhase _, ComputerVsHuman) -> 
+                    EvilMovedMouse
+                _ -> 
+                    (\_ -> NoOp)
+
     in
     div [ id "attached-cursor-layer", on "mousemove" (Decode.map cursorMsg mouseMoveDecoder) ]
         [ div [ id "game-screen-container", class "screen-container" ]
@@ -849,8 +864,8 @@ viewGoodPhaseBoard game data =
                     "computer"
     in
     div [ id "good-board-container", class "board-container" ]
-        [ img [ id "board-background", src "map.png" ] []
-        , div [ id "good-board", class "board", onClick GoodClickedSpyCoord ]
+        [ 
+         div [ id "good-board", class "board", onClick GoodClickedSpyCoord ]
             [ -- The heatmap
               div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
                 [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
@@ -894,9 +909,9 @@ heatmapColour : Int -> Int -> Int -> String
 heatmapColour minValue maxValue value =
     let
         normalisedValue =
-            toFloat (value - minValue) / toFloat (maxValue - minValue)
+            0.25 * toFloat (value - minValue) / toFloat (maxValue - minValue)
     in
-    "rgba(0, 0, 0, " ++ String.fromFloat normalisedValue ++ ")"
+    "rgba(0, 255, 0, " ++ String.fromFloat normalisedValue ++ ")"
 
 
 {-| View a single heatmap square
@@ -918,7 +933,7 @@ viewEvilMember extraClasses boardSize member =
     let
         -- Width as proportion in range [0,1]
         width =
-            0.02
+            0.015
 
         left =
             toPct (member.coord.x / boardSize - width / 2)
@@ -926,28 +941,28 @@ viewEvilMember extraClasses boardSize member =
         top =
             toPct (member.coord.y / boardSize - width / 2)
 
-        ( extraClass2, icon ) =
+        extraClass2 =
             case member.value of
                 5 ->
-                    ( "special", Icons.icon5 )
+                    "special special-5"
 
                 6 ->
-                    ( "special", Icons.icon6 )
+                    "special special-6"
 
                 7 ->
-                    ( "special", Icons.icon7 )
+                     "special special-7"
 
                 8 ->
-                    ( "special", Icons.icon8 )
+                     "special special-8"
 
                 9 ->
-                    ( "special", Icons.icon9 )
+                     "special special-9"
 
                 _ ->
-                    ( "", Icons.icon1 )
+                     ""
     in
     div [ class "evil-member", class extraClass2, class extraClasses, style "left" left, style "top" top, style "width" (toPct width), style "height" (toPct width) ]
-        [ icon [] ]
+        [ ]
 
 
 viewCursorIncluded : Maybe CursorData -> Html Msg
@@ -998,7 +1013,7 @@ viewCursorHover extraClass radius maybeData =
         Just data ->
             let
                 widthPoint =
-                    0.02
+                    0.015
 
                 leftPoint =
                     toPct (data.coord.x / defaultBoardSize - widthPoint / 2)
@@ -1055,8 +1070,7 @@ viewEvilPhaseBoard game data =
                     "computer"
     in
     div [ id "evil-board-container", class "board-container" ]
-        [ img [ id "board-background", src "map.png" ] []
-        , div [ id "evil-board", class "board", onClick EvilClickedAntispyCoord ]
+        [ div [ id "evil-board", class "board", onClick EvilClickedAntispyCoord ]
             [ -- The heatmap
               div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
                 [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
@@ -1110,7 +1124,7 @@ viewAntispyDevice extraClasses radius boardSize spy =
             toPct (spy.y / defaultBoardSize - widthCircle / 2)
     in
     div [ class "device-container" ]
-        [ div [ class "device", class extraClasses, style "left" left, style "top" top, style "width" (toPct width) ] [ text "D" ]
+        [ div [ class "device", class extraClasses, style "left" left, style "top" top, style "width" (toPct width), style "height" (toPct width) ] []
         , div [ class "device-circle", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle) ] []
         , div [ id (String.fromFloat spy.x ++ "," ++ String.fromFloat spy.y), class "device-circle animated", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle) ] []
         ]
@@ -1151,8 +1165,7 @@ viewCompletePhaseBoard game data score =
 
     in
     div [ id "complete-board-container", class "board-container" ]
-        [ img [ id "board-background", src "map.png" ] []
-        , div [ id "complete-board", class "board", onClick EvilClickedAntispyCoord ]
+        [ div [ id "complete-board", class "board", onClick EvilClickedAntispyCoord ]
             [ -- The heatmap
               div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
                 [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
@@ -1163,7 +1176,7 @@ viewCompletePhaseBoard game data score =
 
             -- The included evil members
             , div [ id "complete-board-included-evil-members", class "board-layer evil-members" ]
-                (List.map (viewEvilMember "" defaultBoardSize) score.includedEvilMembers)
+                (List.map (viewEvilMember "included" defaultBoardSize) score.includedEvilMembers)
 
             -- The detected spies
             , div [ id "complete-board-detected-spies", class "board-layer" ]

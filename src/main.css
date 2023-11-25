@@ -28,54 +28,63 @@ html, body {
 input, select {
   padding: 5px;
   font-family: inherit;
+  background: black;
+  border: 1px solid #232;
+  color: white;
 }
 
 select {
   font-size: 10pt;
 }
 
-input[type="text"] {
-  font-size: 10pt;
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance:textfield;
+    appearance: textfield;
+}
+
+input[type="text"], input[type=number] {
+  font-size: 11pt;
   padding: 6px 8px;
 }
 
 button {
-  background: #d1d5db;
+  background: black;
+  color: white;
+  font-weight: bold;
   font-family: inherit;
+  border: 1px solid #232;
   font-size: 10pt;
-  color: #111827;
   padding: 0.5rem;
   border-radius: 5px;
-  border: none;
-  border-bottom: 2px solid #9ca3af;
-  margin-top: 2px;
   cursor: pointer;
 }
 
 button:hover {
-  border-bottom: 4px solid #9ca3af;
-  margin-top: 0px;
+  background: #020;
 }
 
 button:active {
-  border-bottom: 0px;
-  margin-top: 4px;
+  background: white;
+  color: black;
 }
 
 button.selected {
-  border-bottom: 0px;
-  margin-top: 4px;
-  background: #6b7280;
-  color: white;
+  background: #14532d;
+  border-color: #14532d;
 }
 
 .screen {
-  background-color: #e5e5f7;
-opacity: 0.8;
-background-image:  linear-gradient(135deg, #f1f5f9 25%, transparent 25%), linear-gradient(225deg, #f1f5f9 25%, transparent 25%), linear-gradient(45deg, #f1f5f9 25%, transparent 25%), linear-gradient(315deg, #f1f5f9 25%, #e5e5f7 25%);
-background-position:  10px 0, 10px 0, 0 0, 0 0;
-background-size: 10px 10px;
-background-repeat: repeat;
+  background-color: #000000;
+opacity: 1;
+background-image:  linear-gradient(#040e08 2.6px, transparent 2.6px), linear-gradient(90deg, #040e08 2.6px, transparent 2.6px), linear-gradient(#040e08 1.3px, transparent 1.3px), linear-gradient(90deg, #040e08 1.3px, #000000 1.3px);
+background-size: 65px 65px, 65px 65px, 13px 13px, 13px 13px;
+background-position: -2.6px -2.6px, -2.6px -2.6px, -1.3px -1.3px, -1.3px -1.3px;
 }
 
 
@@ -94,11 +103,12 @@ background-repeat: repeat;
 #settings-modal {
   padding: 1rem 2rem 2rem 2rem;
   width: 600px;
-  background: white;
+  background: black;
+  color: white;
   position: relative;
   border-radius: 2px;
-  border: 1px solid #94a3b8;
-  border-top: 5px solid #64748b;
+  border: 1px solid #14532d;
+  border-top: 5px solid #14532d;
 }
 
 #settings-modal::after {
@@ -106,11 +116,11 @@ background-repeat: repeat;
   position: absolute;
   top: 0px;
   left: 0;
-  background: #64748b;
-  border-top: 7px solid #64748b;
-  border-left: 7px solid #64748b;
-  border-bottom: 7px solid white;
-  border-right: 7px solid white;
+  background: #14532d;
+  border-top: 7px solid #14532d;
+  border-left: 7px solid #14532d;
+  border-bottom: 7px solid black;
+  border-right: 7px solid black;
 }
 
 #settings-modal-header {
@@ -135,7 +145,7 @@ background-repeat: repeat;
 
 #settings-modal-header-team {
   font-size: 0.8em;
-  color: #777;
+  color: white;
 }
 
 #settings-modal-intro {
@@ -171,7 +181,7 @@ background-repeat: repeat;
 
 .setting-picker-item-label {
   font-size: 0.7em;
-  color: #475569;
+  color: #aaa;
   margin-bottom: 3px;
   text-transform: uppercase;
 }
@@ -208,13 +218,21 @@ background-repeat: repeat;
 }
 
 #start-game-button {
-  background-color: #374151;
-  color: white;
-  border-color: #000; 
   flex: 1;
   font-size: 1.5rem;
   text-transform: uppercase;
   font-weight: bold;
+}
+
+#start-game-button:hover {
+  background: white;
+  color: black;
+}
+
+#start-game-button:active {
+  background: crimson;
+  border-color: crimson;
+  color: white;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -238,12 +256,12 @@ background-repeat: repeat;
 
 @keyframes spy-circle-animation {
   0% {
-    opacity: 0.1;
+    opacity: 0.05;
     transform: scale(0);
   }
 
   50% {
-    opacity: 0.1;
+    opacity: 0.05;
     transform: scale(1);
   }
 
@@ -296,23 +314,9 @@ background-repeat: repeat;
 }
 
 #restart-button {
-  border: 0;
   margin: 0;
-  background: #94a3b8;
-  color: white;
   padding-left: 1rem;
   padding-right: 1rem;
-}
-
-button#restart-button:hover {
-  border: 0;
-  margin: 0;
-  background: #475569;
-}
-
-button#restart-button:active {
-  border: 0;
-  margin: 0;
 }
 
 .screen-container, .board-container, .phase {
@@ -338,7 +342,7 @@ button#restart-button:active {
   animation-name: phase-rise-up;
   animation-duration: 3s;
   transform: translateY(-120%);
-  background: #030712;
+  background: black;
   color: white;
 }
 
@@ -349,7 +353,7 @@ button#restart-button:active {
 
 #good-phase-computer-card {
   display: flex;
-  background: #030712;
+  background: black;
   color: white;
   display: none;
 }
@@ -385,7 +389,7 @@ button#restart-button:active {
   animation-name: phase-rise-up;
   animation-duration: 3s;
   transform: translateY(-120%);
-  background: #030712;
+  background: black;
   color: white;
 }
 
@@ -421,15 +425,13 @@ button#restart-button:active {
 
 #game-screen-container {
   display: flex;
-  background: white;
   min-width: 640px;
-  border: 1px solid #64748b;
+  border: 1px solid #14532d;
   width: 800px;
   height: 800px;
 }
 
 .board-container {
-  padding: 1rem;
 }
 
 .board {
@@ -437,6 +439,9 @@ button#restart-button:active {
 }
 
 #board-background {
+  /* TODO: GET RID OF SVG INSTEAD?  */
+  display: none;
+
   position: absolute;
   height: 100%;
   width: 100%;
@@ -455,9 +460,10 @@ button#restart-button:active {
   left: 102%;
   font-size: 0.9em;
   width: 25%;
-  border: 1px solid #64748b;
+  border: 1px solid #14532d;
   padding: 1rem;
-  background: white;
+  background: black;
+  color: white;
 }
 .status button {
   margin-bottom: 0.5rem;
@@ -496,7 +502,7 @@ button#restart-button:active {
   position: absolute;
   /* border: 1px solid black; */
   border-radius: 99999px;
-  background: grey;
+  background: #39674c;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -509,33 +515,49 @@ button#restart-button:active {
   z-index: 2;
 }
 
+.evil-member.special.special-5 {
+  background: #8b5cf6;
+}
+
+.evil-member.special.special-6 {
+  background: #a855f7;
+}
+
+.evil-member.special.special-7 {
+  background: #d946ef;
+}
+
+.evil-member.special.special-8 {
+  background: #ec4899;
+}
+
+.evil-member.special.special-9 {
+  background: #f43f5e;
+}
+
 .evil-member > svg {
+  /* TODO: GET RID OF SVG iNSTEAD? */
+  display: none;
+
   height: 100%;
   width: 100%;
 }
 
 
 .evil-member.included {
-  border: 3px solid #0ea5e9;
+  border: 2px solid #0ea5e9;
+  background: #0ea5e9;
 }
 
 .evil-member.cursor-included {
-  transform: scale(1.5);
-  border: 1px solid #0ea5e9;
+  background: #facc15;
+  border: 3px solid #face15;
 }
 
-
-#evil-board .evil-member.cursor-included {
-  border: 1px solid #ef4444 !important;
-}
-
-.evil-member.cursor-included.special {
-  transform: scale(4);
-}
 
 .spy {
   position: absolute;
-  border: 2px solid #075985;
+  border: 1px solid white;
   border-radius: 99999999px;
   background: #0284c7;
   display: flex;
@@ -582,20 +604,19 @@ button#restart-button:active {
 
 .device {
   position: absolute;
-  border: 1px solid #ea580c;
-  border-radius: 99999999px;
-  background: #f97316;
+  background: rgb(239, 68, 68);
   display: flex;
   justify-content: center;
   align-items: center;
   color: white;
   font-size: 5px;
+  z-index: 3;
 }
 
 .device-circle {
   position: absolute;
   border-radius: 999999999px;
-  background: rgba(251, 146, 60, 0.4);
+  background: rgba(239, 20, 60, 0.2);
 }
 
 .device-circle.animated {
@@ -618,6 +639,11 @@ button#restart-button:active {
   z-index: 20;
 }
 
+.evil-cursor .cursor-hover-point {
+  border-radius: 0px;
+  background: crimson;
+  border: none;
+}
 
 .cursor-hover-point-text {
   position: absolute;
@@ -653,8 +679,8 @@ button#restart-button:active {
 }
 
 .evil-cursor .cursor-hover-circle {
-  border: 1px solid #fda4af;
-  background: rgba(253, 164, 175, 0.25);
+  border: 1px solid crimson;
+  background: rgba(220, 20, 60, 0.5);
 }
 
 #attached-cursor-layer {
