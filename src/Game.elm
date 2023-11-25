@@ -15,29 +15,30 @@ You'll probably want to implement a lot of helper functions to make the above ea
 -}
 
 import Array exposing (Array)
+import Browser.Dom as Dom
 import Common exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Html.Lazy
+import Icons
 import Json.Decode as Decode exposing (Decoder)
 import List exposing (..)
 import List.Extra
+import Process
 import Random exposing (Generator)
 import Random.Char exposing (special)
 import Settings exposing (..)
-import Html.Lazy
-import Browser.Dom as Dom
-import Task
 import String exposing (left)
-import Icons
 import Svg
+import Task
+import Random.Extra
 
 
 
 --------------------------------------------------------------------------------
 -- GAME MODEL
 --------------------------------------------------------------------------------
-
 
 
 {-| The board size.
@@ -112,7 +113,7 @@ type alias CursorData =
 type alias GoodData =
     -- 2D heatmap to superimpose (stored as flattened 2D array)
     { heatmap : List Int
-    , minValue : Int 
+    , minValue : Int
     , maxValue : Int
 
     -- A cursor (if on the map) and the data to render
@@ -166,13 +167,13 @@ type alias Game =
 init : Settings -> ( Game, Cmd Msg )
 init settings =
     let
-        evilMembers = 
-            Random.initialSeed settings.randomSeed 
-            |> Random.step (generateEvilMembers defaultBoardSize settings.numEvilMembers)
-            |> Tuple.first
+        evilMembers =
+            Random.initialSeed settings.randomSeed
+                |> Random.step (generateEvilMembers defaultBoardSize settings.numEvilMembers)
+                |> Tuple.first
+
         heatmap =
             calculateHeatmap settings.spyRadius defaultHeatmapSize evilMembers
-
 
         initialGame =
             { settings = settings
@@ -190,8 +191,22 @@ init settings =
                     , totalValue = 0
                     }
             }
+
+        getBoardTask =
+            Task.attempt ReceivedBoardElement (Dom.getElement "good-board")
+
+        initialTask =
+            case settings.playMode of
+                ComputerVsHuman ->
+                    Cmd.batch
+                        [ getBoardTask
+                        , Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 10)
+                        ]
+
+                _ ->
+                    getBoardTask
     in
-    ( initialGame, Task.attempt ReceivedBoardElement (Dom.getElement "good-board") )
+    ( initialGame, initialTask)
 
 
 
@@ -229,7 +244,7 @@ placeSpy : Spy -> Game -> GoodData -> Game
 placeSpy spy game data =
     let
         newSpies =
-            spy :: data.spies
+            data.spies ++ [ spy ]
 
         newAllIncluded =
             game.evilMembers
@@ -253,7 +268,7 @@ placeSpy spy game data =
                     }
         }
 
-    else 
+    else
         let
             heatmap =
                 calculateHeatmap game.settings.spyRadius defaultHeatmapSize (game.evilMembers ++ List.map spyToPerson newSpies)
@@ -280,7 +295,7 @@ placeAntispy : AntispyDevice -> Game -> EvilData -> Game
 placeAntispy antispyDevice game data =
     let
         newAntiSpyDevices =
-            antispyDevice :: data.antispyDevices
+            data.antispyDevices ++ [ antispyDevice ]
 
         newDetectedSpiesThisRound =
             detectedSpies antispyDevice game.settings.deviceRadius data.undetectedSpies
@@ -342,7 +357,7 @@ placeAntispy antispyDevice game data =
 -}
 generateRandomCoord : BoardSize -> Generator Coord
 generateRandomCoord boardSize =
-    Random.map2 Coord (Random.float 0.0 boardSize) (Random.float 0.0 boardSize)
+    Random.map2 Coord (Random.float 4.0 (boardSize - 4.0)) (Random.float 4.0 (boardSize - 4.0))
 
 
 {-| Generate a list of random coordinates given the board size the number of coordinates to generate.
@@ -357,7 +372,10 @@ generateRandomCoords boardSize numCoords =
 specialValues : List Int
 specialValues =
     [ 9, 8, 7, 6, 5 ]
-    -- []
+
+
+
+-- []
 
 
 {-| Generate the initial people in the grid.
@@ -380,6 +398,7 @@ inRadius : Coord -> Float -> EvilMember -> Bool
 inRadius coord radius evilMember =
     distance coord evilMember.coord < radius
 
+
 inRadiusCoord : Coord -> Float -> Coord -> Bool
 inRadiusCoord center radius other =
     distance center other < radius
@@ -389,7 +408,6 @@ inRadiusCoord center radius other =
 -}
 spySumValue : Spy -> Float -> List EvilMember -> Int
 spySumValue spy listeningRadius evilMembers =
-
     evilMembers
         |> List.filter (inRadius spy listeningRadius)
         |> List.map .value
@@ -474,10 +492,10 @@ mouseMoveDataToCoord boardElement data =
         y =
             data.offsetY
 
-        dx = 
+        dx =
             toFloat x - boardElement.element.x
-        
-        dy = 
+
+        dy =
             toFloat y - boardElement.element.y
 
         height =
@@ -485,11 +503,13 @@ mouseMoveDataToCoord boardElement data =
 
         width =
             boardElement.element.width
-        coord = 
+
+        coord =
             Coord (dx / width * defaultBoardSize) (dy / height * defaultBoardSize)
     in
-    if strictWithin defaultBoardSize coord then 
+    if strictWithin defaultBoardSize coord then
         Just coord
+
     else
         Nothing
 
@@ -503,8 +523,10 @@ type Msg
     | EvilClickedAntispyCoord
     | EvilMovedMouse MouseMoveData
     | ResizedWindow Int Int
-    | ToggleHeatmap 
-    | NoOp 
+    | ToggleHeatmap
+    | PauseThenMakeComputerMove
+    | ReceivedComputerMove Move
+    | NoOp
 
 
 {-| A convenience function to pipe a command into a (Game, Cmd Msg) tuple.
@@ -524,25 +546,25 @@ update msg game =
             case data.cursorData of
                 Just coordData ->
                     let
-                        newGame = 
+                        newGame =
                             game |> applyMove (PlaceSpy coordData.coord)
-                    in 
-                    case newGame.phase of 
+                    in
+                    case newGame.phase of
                         EvilPhase newData ->
-                            newGame |> withCmd (Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"))
-                        _ -> 
+                            newGame |> withCmd (Cmd.batch [Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"), Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 4000)])
+
+                        _ ->
                             newGame |> withCmd Cmd.none
 
                 Nothing ->
                     ( game, Cmd.none )
 
         ( GoodPhase data, GoodMovedMouse mouseMoveData ) ->
-            case data.boardElement of 
-                Just boardElement -> 
-                    case mouseMoveDataToCoord boardElement mouseMoveData of 
-                        Just newCoord -> 
+            case data.boardElement of
+                Just boardElement ->
+                    case mouseMoveDataToCoord boardElement mouseMoveData of
+                        Just newCoord ->
                             let
-
                                 newIncluded =
                                     game.evilMembers
                                         |> List.filter (inRadius newCoord game.settings.spyRadius)
@@ -559,27 +581,44 @@ update msg game =
                                     }
                             in
                             { game | phase = GoodPhase { data | cursorData = Just newCursorData } }
-                            |> withCmd Cmd.none
-                        Nothing -> 
-                            { game | phase = GoodPhase { data | cursorData = Nothing }}
-                            |> withCmd Cmd.none
-                Nothing -> 
-                    { game | phase = GoodPhase { data | cursorData = Nothing }}
-                    |> withCmd Cmd.none
+                                |> withCmd Cmd.none
 
-        (GoodPhase data , ReceivedBoardElement result) -> 
-                case result of 
-                    Ok element -> 
-                        { game | phase = GoodPhase { data | boardElement = Just element }}
+                        Nothing ->
+                            { game | phase = GoodPhase { data | cursorData = Nothing } }
+                                |> withCmd Cmd.none
+
+                Nothing ->
+                    { game | phase = GoodPhase { data | cursorData = Nothing } }
                         |> withCmd Cmd.none
-                    Err _ ->
-                        ( game, Cmd.none )
 
-        (GoodPhase data, ResizedWindow x y) -> 
-            game 
+        ( GoodPhase data, ReceivedBoardElement result ) ->
+            case result of
+                Ok element ->
+                    { game | phase = GoodPhase { data | boardElement = Just element } }
+                        |> withCmd Cmd.none
+
+                Err _ ->
+                    ( game, Cmd.none )
+           
+        ( GoodPhase data, ResizedWindow x y ) ->
+            game
                 |> withCmd (Task.attempt ReceivedBoardElement (Dom.getElement "good-board"))
 
-        (EvilPhase data, EvilClickedAntispyCoord) ->
+        ( GoodPhase data, ReceivedComputerMove move ) -> 
+            let
+                newGame = 
+                    applyMove move game
+            in
+            case newGame.phase of
+                EvilPhase newData ->
+                    newGame |> withCmd (Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"))
+
+                _ ->
+                    newGame |> withCmd (Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 100))
+
+
+
+        ( EvilPhase data, EvilClickedAntispyCoord ) ->
             case data.cursorData of
                 Just coordData ->
                     game
@@ -589,17 +628,16 @@ update msg game =
                 Nothing ->
                     ( game, Cmd.none )
 
-        (EvilPhase data, EvilMovedMouse mouseMoveData) -> 
-            case data.boardElement of 
-                Just boardElement -> 
-                    case mouseMoveDataToCoord boardElement mouseMoveData of 
-                        Just newCoord -> 
+        ( EvilPhase data, EvilMovedMouse mouseMoveData ) ->
+            case data.boardElement of
+                Just boardElement ->
+                    case mouseMoveDataToCoord boardElement mouseMoveData of
+                        Just newCoord ->
                             let
-
-                                allPeople = 
+                                allPeople =
                                     data.undetectedSpies
-                                    |> List.map spyToPerson
-                                    |> List.append game.evilMembers
+                                        |> List.map spyToPerson
+                                        |> List.append game.evilMembers
 
                                 newIncluded =
                                     allPeople
@@ -617,39 +655,127 @@ update msg game =
                                     }
                             in
                             { game | phase = EvilPhase { data | cursorData = Just newCursorData } }
-                            |> withCmd Cmd.none
-                        Nothing -> 
-                            { game | phase = EvilPhase { data | cursorData = Nothing }}
-                            |> withCmd Cmd.none
-                Nothing -> 
-                    { game | phase = EvilPhase { data | cursorData = Nothing }}
-                    |> withCmd Cmd.none
+                                |> withCmd Cmd.none
+
+                        Nothing ->
+                            { game | phase = EvilPhase { data | cursorData = Nothing } }
+                                |> withCmd Cmd.none
+
+                Nothing ->
+                    { game | phase = EvilPhase { data | cursorData = Nothing } }
+                        |> withCmd Cmd.none
 
         ( EvilPhase data, ReceivedBoardElement result ) ->
-            case result of 
-                Ok element -> 
-                    { game | phase = EvilPhase { data | boardElement = Just element }}
-                    |> withCmd Cmd.none
+            case result of
+                Ok element ->
+                    { game | phase = EvilPhase { data | boardElement = Just element } }
+                        |> withCmd Cmd.none
+
                 Err _ ->
                     ( game, Cmd.none )
 
         ( EvilPhase data, ResizedWindow x y ) ->
-            game 
+            game
                 |> withCmd (Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"))
-        (_, ToggleHeatmap) -> 
+
+        ( EvilPhase data, ReceivedComputerMove move ) -> 
+            let
+                newGame = 
+                    applyMove move game
+            in
+            case newGame.phase of
+                EvilPhase newData ->
+                    newGame |> withCmd (Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 1000))
+
+                _ ->
+                    newGame |> withCmd Cmd.none
+
+
+
+        ( _, ToggleHeatmap ) ->
             { game | showHeatmap = not game.showHeatmap }
-            |> withCmd Cmd.none
+                |> withCmd Cmd.none
 
+        ( _, PauseThenMakeComputerMove) -> 
+            let
+                computerMoveCmd = 
+                    case game.settings.computerDifficulty of 
+                        Easy -> 
+                            makeComputerMoveEasy game
+                        Hard -> 
+                            makeComputerMoveHard game
+            in
 
+                (game, computerMoveCmd)
+ 
         _ ->
             ( game, Cmd.none )
 
+
+--------------------------------------------------------------------------------
+-- COMPUTER PLAYERS
+--------------------------------------------------------------------------------
+
+{-| For the easy player:
+- GOOD PHASE: Randomly place the spies ANYWHERE on the board 
+- EVIL PHASE: Choose random locations
+-}
+makeComputerMoveEasy : Game -> Cmd Msg
+makeComputerMoveEasy game =  
+    case game.phase of 
+        GoodPhase data -> 
+            Random.float 0.0 defaultBoardSize
+                |> Random.map2 Coord (Random.float 0.0 defaultBoardSize)
+                |> Random.map PlaceSpy
+                |> Random.generate ReceivedComputerMove
+
+        EvilPhase data -> 
+            Random.float 0.0 defaultBoardSize
+                |> Random.map2 Coord (Random.float 0.0 defaultBoardSize)
+                |> Random.map PlaceAntispyDevice
+                |> Random.generate ReceivedComputerMove
+
+        _ -> 
+            Cmd.none
+
+{-| For the hard player:
+- GOOD Phase: Choose randomly from the top boardSize**2 / numSpies locations on the heatmap
+- EVIL Phase: Choose randomly from the top boardSize ** 2 / numDevices locations on the heatmap
+-}
+makeComputerMoveHard : Game -> Cmd Msg
+makeComputerMoveHard game = 
+    case game.phase of 
+        GoodPhase data -> 
+            data.heatmap
+                |> List.indexedMap (\index value -> (index, value))
+                |> List.sortBy Tuple.second
+                |> List.reverse
+                |> List.take (round  (defaultBoardSize * defaultBoardSize / toFloat game.settings.numSpies))
+                |> List.map Tuple.first
+                |> Random.Extra.sample 
+                |> Random.map (Maybe.withDefault 0)
+                |> Random.map (\index -> Coord (toFloat (index |> modBy defaultHeatmapSize) + 0.5) (toFloat (index // defaultHeatmapSize) + 0.5))
+                |> Random.map PlaceSpy
+                |> Random.generate ReceivedComputerMove
+        EvilPhase data -> 
+            data.heatmap
+                |> List.indexedMap (\index value -> (index, value))
+                |> List.sortBy Tuple.second
+                |> List.reverse
+                |> List.take (round (defaultBoardSize * defaultBoardSize / toFloat game.settings.numSpies))
+                |> List.map Tuple.first
+                |> Random.Extra.sample 
+                |> Random.map (Maybe.withDefault 0)
+                |> Random.map (\index -> Coord (toFloat (index |> modBy defaultHeatmapSize) + 0.5) (toFloat (index // defaultHeatmapSize) + 0.5))
+                |> Random.map PlaceAntispyDevice
+                |> Random.generate ReceivedComputerMove
+        _ ->
+            Cmd.none
 
 
 --------------------------------------------------------------------------------
 -- GAME VIEW FUNCTION
 --------------------------------------------------------------------------------
-
 -- SVGS
 
 
@@ -662,70 +788,72 @@ can be sent from.
 view : Game -> Html Msg
 view game =
     let
-        (phaseView, cursorMsg) = 
+        ( phaseView, cursorMsg ) =
             case game.phase of
                 GoodPhase goodData ->
-                    (viewGoodPhase game goodData, GoodMovedMouse)
+                    ( viewGoodPhase game goodData, GoodMovedMouse )
 
                 EvilPhase evilData ->
-                    (viewEvilPhase game evilData, EvilMovedMouse)
+                    ( viewEvilPhase game evilData, EvilMovedMouse )
 
                 Complete evilData finalScore ->
-                    (viewComplete game evilData finalScore, (\_ -> NoOp))
-
-
-
+                    ( viewComplete game evilData finalScore, \_ -> NoOp )
     in
-    div [ id "attached-cursor-layer", on "mousemove" (Decode.map cursorMsg mouseMoveDecoder) ] 
-        [ div [id "game-screen-container", class "screen-container"]
-            [phaseView ]
+    div [ id "attached-cursor-layer", on "mousemove" (Decode.map cursorMsg mouseMoveDecoder) ]
+        [ div [ id "game-screen-container", class "screen-container" ]
+            [ phaseView ]
         ]
+
 
 {-| View the good phase screen
 -}
 viewGoodPhase : Game -> GoodData -> Html Msg
 viewGoodPhase game data =
-    div [ id "view-good-phase", class "phase"]
+    div [ id "view-good-phase", class "phase" ]
         [ viewGoodPhaseBoard game data
-        , viewGoodPhaseStatus game data ]
-
-viewGoodPhaseStatus : Game -> GoodData -> Html Msg
-viewGoodPhaseStatus game data = 
-    div [id "good-status", class "status"]
-        [ div [id "good-status-spy-count", class "status-item"]
-            [ text ("Spies: " ++ String.fromInt (List.length data.spies) ++ "/" ++ String.fromInt game.settings.numSpies)]
-        , div [id "good-status-total-value", class "status-item"]
-            [ text ("Total value: " ++ String.fromInt data.totalValue)]
-        , div [id "good-status-cursor-container", class "status-item"]
-            [ viewGoodCursorInfo game data ]
-        , button [onClick ToggleHeatmap, classList [("is-selected", game.showHeatmap)]] [text "Toggle Heatmap"]
+        , viewGoodPhaseStatus game data
         ]
 
-viewGoodCursorInfo : Game -> GoodData -> Html Msg
-viewGoodCursorInfo game data = 
-    case data.cursorData of 
-        Just cursorData -> 
-            div [id "good-status-cursor-information"]
-                [ text ("Cursor value: " ++ String.fromInt cursorData.value)]
-        Nothing -> 
-            div [] []
 
-{-| Turn a heatmap size into a string for grid template css -}
+viewGoodPhaseStatus : Game -> GoodData -> Html Msg
+viewGoodPhaseStatus game data =
+    div [ id "good-status", class "status" ]
+        [ button [ onClick ToggleHeatmap, classList [ ( "is-selected", game.showHeatmap ) ] ] [ text "Toggle Heatmap" ]
+        , div [ id "good-status-spy-count", class "status-item" ]
+            [ strong [] [ text "Spies: " ], text (String.fromInt (List.length data.spies) ++ "/" ++ String.fromInt game.settings.numSpies) ]
+        , div [ id "good-status-total-value", class "status-item" ]
+            [ strong [] [ text "Total value: " ], text (String.fromInt data.totalValue) ]
+        ]
+
+
+{-| Turn a heatmap size into a string for grid template css
+-}
 gridTemplateString : String
-gridTemplateString = 
-        "repeat(" ++ String.fromInt defaultHeatmapSize ++ ", 1fr)"
+gridTemplateString =
+    "repeat(" ++ String.fromInt defaultHeatmapSize ++ ", 1fr)"
 
 
 {-| View the board for the good phase.
 -}
 viewGoodPhaseBoard : Game -> GoodData -> Html Msg
 viewGoodPhaseBoard game data =
+
+    let
+        goodPhaseExtraClass = 
+            case game.settings.playMode of 
+                HumanVsHuman -> 
+                    ""
+                HumanVsComputer -> 
+                    ""
+                ComputerVsHuman -> 
+                    "computer"
+    in
     div [ id "good-board-container", class "board-container" ]
-        [ img [id "board-background", src "map.png"] []
+        [ img [ id "board-background", src "map.png" ] []
         , div [ id "good-board", class "board", onClick GoodClickedSpyCoord ]
             [ -- The heatmap
-            div [ classList [("is-visible", game.showHeatmap)], class "board-layer-container heatmap-container"]
-                [Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap]
+              div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
+                [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
 
             -- The evil members
             , div [ id "good-board-evil-members", class "board-layer evil-members" ]
@@ -735,28 +863,30 @@ viewGoodPhaseBoard game data =
             , div [ id "good-board-included-evil-members", class "board-layer" ]
                 (List.map (viewEvilMember "included" defaultBoardSize) data.allIncluded)
 
-
             -- The cursor evil members
             , viewCursorIncluded data.cursorData
 
             -- The cursor hover
-            , div [ id "good-board-cursor-hover", class "board-layer"]
-                [ viewCursorHover "good-cursor" game.settings.spyRadius data.cursorData]
+            , div [ id "good-board-cursor-hover", class "board-layer" ]
+                [ viewCursorHover "good-cursor" game.settings.spyRadius data.cursorData ]
 
             -- The spies
             , div [ id "good-board-spies", class "board-layer" ]
                 (List.map (viewSpy "" game.settings.spyRadius defaultBoardSize) data.spies)
 
-
             -- The cursor layer
             ]
-        , div [id "good-phase-transition-card", class "phase-transition"] [ h1 [] [text "GOOD Phase"], h2 [] [text "GOOD: Place your spies!"], h2 [] [text "EVIL: Look away!"], div [] [text "The phase will start in 5 seconds."]]
+        , div [ id "good-phase-transition-card", class "phase-transition", class goodPhaseExtraClass] [ h1 [] [ text "GOOD Phase" ], div [] [ h2 [] [ text "GOOD: Place your spies!" ], h2 [] [ text "EVIL: Look away!" ] ], div [ class "small" ] [ text "The phase will start in 3 seconds." ] ]
+        , div [ id "good-phase-computer-card", class "phase-transition", class goodPhaseExtraClass] [ h1 [] [ text "GOOD Phase" ], div [] [ h2 [] [ text "GOOD: Computer is placing its spies!" ], h2 [] [ text "EVIL: Look away!" ] ], div [ class "small" ] [ text "" ] ]
         ]
 
-{-| Lazily view the heatmap -}
+
+{-| Lazily view the heatmap
+-}
 viewHeatmapLazy : Int -> Int -> List Int -> Html Msg
 viewHeatmapLazy minValue maxValue heatmap =
-    div [class "board-layer heatmap",  style "grid-template-columns" gridTemplateString, style "grid-template-rows" gridTemplateString ] (List.map (viewHeatmapSquare minValue maxValue) heatmap)
+    div [ class "board-layer heatmap", style "grid-template-columns" gridTemplateString, style "grid-template-rows" gridTemplateString ] (List.map (viewHeatmapSquare minValue maxValue) heatmap)
+
 
 {-| Convert a heatmap value to a colour string
 -}
@@ -764,7 +894,7 @@ heatmapColour : Int -> Int -> Int -> String
 heatmapColour minValue maxValue value =
     let
         normalisedValue =
-            toFloat (value - minValue)  / toFloat ( maxValue - minValue)
+            toFloat (value - minValue) / toFloat (maxValue - minValue)
     in
     "rgba(0, 0, 0, " ++ String.fromFloat normalisedValue ++ ")"
 
@@ -794,27 +924,40 @@ viewEvilMember extraClasses boardSize member =
             toPct (member.coord.x / boardSize - width / 2)
 
         top =
-            toPct (member.coord.y / boardSize- width / 2)
+            toPct (member.coord.y / boardSize - width / 2)
 
-        (extraClass2, icon) = 
-            case member.value of 
-                5 -> ("special", Icons.icon5)
-                6 -> ("special", Icons.icon6)
-                7 -> ("special", Icons.icon7)
-                8 -> ("special", Icons.icon8)
-                9 -> ("special", Icons.icon9)
-                _ -> ("", Icons.icon1)
+        ( extraClass2, icon ) =
+            case member.value of
+                5 ->
+                    ( "special", Icons.icon5 )
+
+                6 ->
+                    ( "special", Icons.icon6 )
+
+                7 ->
+                    ( "special", Icons.icon7 )
+
+                8 ->
+                    ( "special", Icons.icon8 )
+
+                9 ->
+                    ( "special", Icons.icon9 )
+
+                _ ->
+                    ( "", Icons.icon1 )
     in
     div [ class "evil-member", class extraClass2, class extraClasses, style "left" left, style "top" top, style "width" (toPct width), style "height" (toPct width) ]
         [ icon [] ]
 
+
 viewCursorIncluded : Maybe CursorData -> Html Msg
-viewCursorIncluded maybe = 
-    case maybe of 
-        Just data -> 
-            div [ id "good-board-cursor-included", class "board-layer"]
+viewCursorIncluded maybe =
+    case maybe of
+        Just data ->
+            div [ id "board-cursor-included", class "board-layer" ]
                 (List.map (viewEvilMember "cursor-included" defaultBoardSize) data.included)
-        Nothing -> 
+
+        Nothing ->
             div [] []
 
 
@@ -822,61 +965,66 @@ viewSpy : String -> Float -> BoardSize -> Spy -> Html Msg
 viewSpy extraClasses radius boardSize spy =
     let
         width =
-            0.01
+            0.02
 
         left =
             toPct (spy.x / boardSize - width / 2)
 
         top =
-            toPct (spy.y / boardSize- width / 2)
-        widthCircle = 
+            toPct (spy.y / boardSize - width / 2)
+
+        widthCircle =
             2 * radius / defaultBoardSize
 
-        leftCircle = 
+        leftCircle =
             toPct (spy.x / defaultBoardSize - widthCircle / 2)
-        topCircle = 
-            toPct (spy.y / defaultBoardSize - widthCircle / 2)
 
+        topCircle =
+            toPct (spy.y / defaultBoardSize - widthCircle / 2)
     in
-    div [class "spy-container"] 
-    [ div [ class "spy", class extraClasses, style "left" left, style "top" top, style "width" (toPct width), style "height" (toPct width) ] [ ]
-    , div [class "spy-circle", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle)] []
-    ]
+    div [ class "spy-container" ]
+        [ div [ class "spy", class extraClasses, style "left" left, style "top" top, style "width" (toPct width), style "height" (toPct width) ] []
+        , div [ class "spy-circle", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle) ] []
+        , div [ class "spy-circle animated", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle) ] []
+        ]
+
 
 viewCursorHover : String -> Float -> Maybe CursorData -> Html Msg
-viewCursorHover extraClass radius maybeData = 
-    case maybeData of 
-        Nothing -> 
+viewCursorHover extraClass radius maybeData =
+    case maybeData of
+        Nothing ->
             div [] []
-        Just data -> 
-            let
-                widthPoint = 
-                    0.01
 
-                leftPoint = 
+        Just data ->
+            let
+                widthPoint =
+                    0.02
+
+                leftPoint =
                     toPct (data.coord.x / defaultBoardSize - widthPoint / 2)
 
-                topPoint = 
+                topPoint =
                     toPct (data.coord.y / defaultBoardSize - widthPoint / 2)
 
-                widthCircle = 
+                widthCircle =
                     2 * radius / defaultBoardSize
 
-                leftCircle = 
+                leftCircle =
                     toPct (data.coord.x / defaultBoardSize - widthCircle / 2)
-                topCircle = 
+
+                topCircle =
                     toPct (data.coord.y / defaultBoardSize - widthCircle / 2)
 
-                pointText = 
-                    if extraClass == "good-cursor" then 
-                        div [class "cursor-hover-point-text"] [text (String.fromInt data.value)]
-                    else 
-                        div [] []
+                pointText =
+                    if extraClass == "good-cursor" then
+                        div [ class "cursor-hover-point-text" ] [ text (String.fromInt data.value) ]
 
-            in 
-            div [class extraClass]
-                [ div [class "cursor-hover-circle", style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle)] []
-                , div [class "cursor-hover-point", style "left" leftPoint, style "top" topPoint, style "width" (toPct widthPoint), style "height" (toPct widthPoint)] [pointText]
+                    else
+                        div [] []
+            in
+            div [ class extraClass ]
+                [ div [ class "cursor-hover-circle", style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle) ] []
+                , div [ class "cursor-hover-point", style "left" leftPoint, style "top" topPoint, style "width" (toPct widthPoint), style "height" (toPct widthPoint) ] [ pointText ]
                 ]
 
 
@@ -884,26 +1032,34 @@ viewCursorHover extraClass radius maybeData =
 -}
 viewEvilPhase : Game -> EvilData -> Html Msg
 viewEvilPhase game data =
-   div [ id "view-evil-phase", class "phase"]
+    div [ id "view-evil-phase", class "phase" ]
         [ viewEvilPhaseBoard game data
-        , viewEvilPhaseStatus game data ]
+        , viewEvilPhaseStatus game data
+        ]
+
 
 viewEvilPhaseBoard : Game -> EvilData -> Html Msg
-viewEvilPhaseBoard game data = 
+viewEvilPhaseBoard game data =
     let
-        allPeople = 
+        allPeople =
             data.undetectedSpies
-            |> List.map spyToPerson
-            |> List.append game.evilMembers
-
+                |> List.map spyToPerson
+                |> List.append game.evilMembers
+        goodPhaseExtraClass = 
+            case game.settings.playMode of 
+                HumanVsHuman -> 
+                    ""
+                HumanVsComputer -> 
+                    ""
+                ComputerVsHuman -> 
+                    "computer"
     in
     div [ id "evil-board-container", class "board-container" ]
-        [ img [id "board-background", src "map.png"] []
+        [ img [ id "board-background", src "map.png" ] []
         , div [ id "evil-board", class "board", onClick EvilClickedAntispyCoord ]
             [ -- The heatmap
-
-            div [ classList [("is-visible", game.showHeatmap)], class "board-layer-container heatmap-container"]
-                [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ] 
+              div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
+                [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
 
             -- ALL people
             , div [ id "evil-board-evil-members", class "board-layer evil-members" ]
@@ -917,23 +1073,20 @@ viewEvilPhaseBoard game data =
             , viewCursorIncluded data.cursorData
 
             -- The cursor hover
-            , div [ id "evil-board-cursor-hover", class "board-layer"]
-                [ viewCursorHover "evil-cursor" game.settings.deviceRadius data.cursorData]
+            , div [ id "evil-board-cursor-hover", class "board-layer" ]
+                [ viewCursorHover "evil-cursor" game.settings.deviceRadius data.cursorData ]
 
             -- The devices
             , div [ id "evil-board-devices", class "board-layer" ]
                 (List.map (viewAntispyDevice "" game.settings.deviceRadius defaultBoardSize) data.antispyDevices)
 
-
             -- The cursor layer
             ]
-
-
-        , div [id "good-phase-transition-card", class "phase-transition"]  []
-        , div [id "evil-phase-transition-card", class "phase-transition"] 
-            [ h1 [] [text "EVIL Phase"], h2 [] [text "GOOD has placed their spies."], h2 [] [text "EVIL: Place your devices."], div [] [text "The phase will start in 5 seconds."]]
-
+        , div [ id "good-phase-transition-card", class goodPhaseExtraClass, class "phase-transition" ] []
+        , div [ id "evil-phase-transition-card", class "phase-transition" ]
+            [ h1 [] [ text "EVIL Phase" ], div [] [ h2 [] [ text "GOOD has placed their spies." ], h2 [] [ text "EVIL: Place your devices." ] ], div [ class "small" ] [ text "The phase will start in 3 seconds." ] ]
         ]
+
 
 viewAntispyDevice : String -> Float -> BoardSize -> Spy -> Html Msg
 viewAntispyDevice extraClasses radius boardSize spy =
@@ -945,62 +1098,64 @@ viewAntispyDevice extraClasses radius boardSize spy =
             toPct (spy.x / boardSize - width / 2)
 
         top =
-            toPct (spy.y / boardSize- width / 2)
-        widthCircle = 
+            toPct (spy.y / boardSize - width / 2)
+
+        widthCircle =
             2 * radius / defaultBoardSize
 
-        leftCircle = 
+        leftCircle =
             toPct (spy.x / defaultBoardSize - widthCircle / 2)
-        topCircle = 
+
+        topCircle =
             toPct (spy.y / defaultBoardSize - widthCircle / 2)
-
     in
-    div [class "device-container"] 
-    [ div [ class "device", class extraClasses, style "left" left, style "top" top, style "width" (toPct width) ] [ text "D" ]
-    , div [class "device-circle", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle)] []
-    ]
-
-viewEvilPhaseStatus: Game -> EvilData -> Html Msg
-viewEvilPhaseStatus game data = 
-    div [id "evil-status", class "status"]
-        [ div [id "evil-status-device-count", class "status-item"]
-            [ text ("Devices: " ++ String.fromInt (List.length data.antispyDevices) ++ "/" ++ String.fromInt game.settings.numDevices)]
-        , div [id "evil-status-detected-spies", class "status-item"]
-            [ text ("Spies detected: " ++ String.fromInt (List.length data.detectedSpies) ++ "/" ++ String.fromInt game.settings.numSpies )]
-        , div [id "evil-status-cursor-container", class "status-item"]
-            [ viewEvilCursorInfo game data ]
-        , button [onClick ToggleHeatmap, classList [("is-selected", game.showHeatmap)]] [text "Toggle Heatmap"]
+    div [ class "device-container" ]
+        [ div [ class "device", class extraClasses, style "left" left, style "top" top, style "width" (toPct width) ] [ text "D" ]
+        , div [ class "device-circle", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle) ] []
+        , div [ id (String.fromFloat spy.x ++ "," ++ String.fromFloat spy.y), class "device-circle animated", class extraClasses, style "left" leftCircle, style "top" topCircle, style "width" (toPct widthCircle), style "height" (toPct widthCircle) ] []
         ]
 
-viewEvilCursorInfo : Game -> EvilData -> Html Msg
-viewEvilCursorInfo game data = 
-    case data.cursorData of 
-        Just cursorData -> 
-            div [id "good-status-cursor-information"]
-                [ text ("Number probed: " ++ String.fromInt (List.length cursorData.included))]
-        Nothing -> 
-            div [] []
 
-
+viewEvilPhaseStatus : Game -> EvilData -> Html Msg
+viewEvilPhaseStatus game data =
+    div [ id "evil-status", class "status" ]
+        [ button [ onClick ToggleHeatmap, classList [ ( "is-selected", game.showHeatmap ) ] ] [ text "Toggle Heatmap" ]
+        , div [ id "evil-status-device-count", class "status-item" ]
+            [ strong [] [ text "Devices: " ], text (String.fromInt (List.length data.antispyDevices) ++ "/" ++ String.fromInt game.settings.numDevices ++ " used") ]
+        , div [ id "evil-status-detected-spies", class "status-item" ]
+            [ strong [] [ text "Spies detected: " ], text (String.fromInt (List.length data.detectedSpies) ++ "/" ++ String.fromInt game.settings.numSpies) ]
+        ]
 
 
 {-| View the completion screen at the end of the game.
 -}
 viewComplete : Game -> EvilData -> FinalScore -> Html Msg
 viewComplete game data finalScore =
-    div [ id "view-complete-phase", class "phase"]
+    div [ id "view-complete-phase", class "phase" ]
         [ viewCompletePhaseBoard game data finalScore
-        , viewCompletePhaseStatus game data finalScore]
-   
+        , viewCompletePhaseStatus game data finalScore
+        ]
+
+
 viewCompletePhaseBoard : Game -> EvilData -> FinalScore -> Html Msg
-viewCompletePhaseBoard game data score = 
+viewCompletePhaseBoard game data score =
+    let
+        goodPhaseExtraClass = 
+            case game.settings.playMode of 
+                HumanVsHuman -> 
+                    ""
+                HumanVsComputer -> 
+                    ""
+                ComputerVsHuman -> 
+                    "computer"
+
+    in
     div [ id "complete-board-container", class "board-container" ]
-        [ img [id "board-background", src "map.png"] []
+        [ img [ id "board-background", src "map.png" ] []
         , div [ id "complete-board", class "board", onClick EvilClickedAntispyCoord ]
             [ -- The heatmap
-            div [ classList [("is-visible", game.showHeatmap)], class "board-layer-container heatmap-container"]
-                [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap] 
-
+              div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
+                [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
 
             -- Evil members
             , div [ id "complete-board-evil-members", class "board-layer evil-members" ]
@@ -1021,22 +1176,22 @@ viewCompletePhaseBoard game data score =
             -- The devices
             , div [ id "complete-board-devices", class "board-layer" ]
                 (List.map (viewAntispyDevice "" game.settings.deviceRadius defaultBoardSize) data.antispyDevices)
-
             ]
-
-        , div [id "good-phase-transition-card", class "phase-transition", style "display" "none"]  []
-        , div [id "evil-phase-transition-card", class "phase-transition", style "display" "none"]  []
-        , div [id "complete-phase-transition-card", class "phase-transition"] []
+        , div [ id "good-phase-transition-card", class goodPhaseExtraClass, class "phase-transition", style "display" "none" ] []
+        , div [ id "evil-phase-transition-card", class "phase-transition", style "display" "none" ] []
+        , div [ id "complete-phase-transition-card", class "phase-transition" ] []
         ]
 
+
 viewCompletePhaseStatus : Game -> EvilData -> FinalScore -> Html Msg
-viewCompletePhaseStatus game data score = 
-    div [id "complete-status", class "status"]
-        [ div [id "complete-status-good-initial-score", class "status-item"]
-            [ text ("Good initial score: " ++ String.fromInt score.goodInitialScore)]
-        , div [id "complete-status-good-final-score", class "status-item"]
-            [ text ("Good final score: " ++ String.fromInt score.goodFinalScore)]
-        , div [id "complete-status-spies-found", class "status-item"]
-            [ text ("Spies found: " ++ String.fromInt score.numSpiesFound ++ "/" ++ String.fromInt game.settings.numSpies)]
-        , button [onClick ToggleHeatmap, classList [("is-selected", game.showHeatmap)]] [text "Toggle Heatmap"]
+viewCompletePhaseStatus game data score =
+    div [ id "complete-status", class "status" ]
+        [ button [ onClick ToggleHeatmap, classList [ ( "is-selected", game.showHeatmap ) ] ] [ text "Toggle Heatmap" ]
+        , h1 [] [ text "FINISHED!" ]
+        , h2 [] [ text "GOOD's FINAL SCORE" ]
+        , div [ id "complete-status-good-final-score", class "status-item" ]
+            [ text (String.fromInt score.goodFinalScore) ]
+        , h2 [] [ text "Spies detected by EVIL" ]
+        , div [ id "complete-status-spies-found", class "status-item" ]
+            [ text (String.fromInt score.numSpiesFound ++ "/" ++ String.fromInt game.settings.numSpies) ]
         ]

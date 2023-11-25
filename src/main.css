@@ -70,7 +70,12 @@ button.selected {
 }
 
 .screen {
-  background-color: #f1f5f9;
+  background-color: #e5e5f7;
+opacity: 0.8;
+background-image:  linear-gradient(135deg, #f1f5f9 25%, transparent 25%), linear-gradient(225deg, #f1f5f9 25%, transparent 25%), linear-gradient(45deg, #f1f5f9 25%, transparent 25%), linear-gradient(315deg, #f1f5f9 25%, #e5e5f7 25%);
+background-position:  10px 0, 10px 0, 0 0, 0 0;
+background-size: 10px 10px;
+background-repeat: repeat;
 }
 
 
@@ -203,7 +208,7 @@ button.selected {
 }
 
 #start-game-button {
-  background-color: #333;
+  background-color: #374151;
   color: white;
   border-color: #000; 
   flex: 1;
@@ -226,9 +231,50 @@ button.selected {
   }
 
   100% {
-    transform: translateY(-150%);
+    transform: translateY(-120%);
   }
 
+}
+
+@keyframes spy-circle-animation {
+  0% {
+    opacity: 0.1;
+    transform: scale(0);
+  }
+
+  50% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes flash-opacity {
+  0% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes reduce {
+  0% {
+    transform: scale(2);
+  }
+
+  90% {
+    transform: scale(2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* --------------------------------------------------------------------------- */
@@ -285,22 +331,92 @@ button#restart-button:active {
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  padding: 1rem;
 }
 
 #good-phase-transition-card {
   animation-name: phase-rise-up;
-  animation-duration: 5s;
-  transform: translateY(-150%);
-  background: black;
+  animation-duration: 3s;
+  transform: translateY(-120%);
+  background: #030712;
   color: white;
+}
+
+
+#good-phase-transition-card.computer {
+  display: none;
+}
+
+#good-phase-computer-card {
+  display: flex;
+  background: #030712;
+  color: white;
+  display: none;
+}
+
+#good-phase-computer-card.computer {
+  display: flex;
+}
+
+
+.phase-transition h1 {
+  margin: 0.5rem 0;
+  font-size: 3rem; 
+}
+
+.phase-transition h1::before {
+  content: "🙚 ";
+}
+
+.phase-transition h1::after {
+  content: " 🙘";
+}
+
+.phase-transition h2 {
+  margin: 0.5rem 0;
+  font-weight: normal;
+}
+.phase-transition .small{
+  position: absolute;
+  bottom: 4rem;
 }
 
 #evil-phase-transition-card {
   animation-name: phase-rise-up;
-  animation-duration: 5s;
-  transform: translateY(-150%);
-  background: black;
+  animation-duration: 3s;
+  transform: translateY(-120%);
+  background: #030712;
   color: white;
+}
+
+#complete-phase-transition-card {
+  background: white;
+  animation-name: flash-opacity;
+  animation-duration: 1s;
+  opacity: 0;
+}
+
+#complete-status h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+#complete-status h2 {
+  margin: 0;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+#complete-status-good-final-score {
+  font-size: 2rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+#complete-status-spies-found {
+  text-align: center;
 }
 
 #game-screen-container {
@@ -308,14 +424,16 @@ button#restart-button:active {
   background: white;
   min-width: 640px;
   border: 1px solid #64748b;
-  width: 80vh;
-  max-width: 80vh;
-  height: 80vh;
-  max-height: 80vw
+  width: 800px;
+  height: 800px;
 }
 
 .board-container {
   padding: 1rem;
+}
+
+.board {
+  overflow: hidden;
 }
 
 #board-background {
@@ -324,7 +442,7 @@ button#restart-button:active {
   width: 100%;
   top: 0;
   left: 0;
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
 .phase {
@@ -334,11 +452,16 @@ button#restart-button:active {
 .status {
   position: absolute;
   top: 0;
-  left: 105%;
+  left: 102%;
   font-size: 0.9em;
-  width: 20%;
-  border: 1px solid black;
+  width: 25%;
+  border: 1px solid #64748b;
   padding: 1rem;
+  background: white;
+}
+.status button {
+  margin-bottom: 0.5rem;
+  width: 100%;
 }
 
 .board {
@@ -379,11 +502,11 @@ button#restart-button:active {
   align-items: center;
   color: white;
   font-size: 5px;
-  z-index: 0;
+  z-index: 1;
 }
 
 .evil-member.special {
-  z-index: 1;
+  z-index: 2;
 }
 
 .evil-member > svg {
@@ -393,12 +516,17 @@ button#restart-button:active {
 
 
 .evil-member.included {
-  border: 2px solid blue;
+  border: 3px solid #0ea5e9;
 }
 
 .evil-member.cursor-included {
   transform: scale(1.5);
-  border: 1px solid yellow;
+  border: 1px solid #0ea5e9;
+}
+
+
+#evil-board .evil-member.cursor-included {
+  border: 1px solid #ef4444 !important;
 }
 
 .evil-member.cursor-included.special {
@@ -407,20 +535,30 @@ button#restart-button:active {
 
 .spy {
   position: absolute;
-  border: 1px solid black;
+  border: 2px solid #075985;
   border-radius: 99999999px;
-  background: orange;
+  background: #0284c7;
   display: flex;
   justify-content: center;
   align-items: center;
   color: white;
   font-size: 5px;
+  z-index: 2;
 }
 
 .spy-circle {
   position: absolute;
+  background: #7dd3fc;
   border-radius: 999999999px;
-  border: 1px solid blue;
+  border: 1px solid #0369a1;
+  z-index: 3;
+  opacity: 0.2;
+}
+
+.spy-circle.animated {
+  animation-name: spy-circle-animation;
+  animation-duration: 1s;
+  animation-iteration-count: infinite;
 }
 
 .spy-circle.detected {
@@ -435,16 +573,18 @@ button#restart-button:active {
 
 .spy.detected::after {
   content: "☒";
-  font-size: 1.2rem;
+  font-size: 1.4rem;
   color: red;
+  animation-name: reduce;
+  animation-duration: 1s;
 }
 
 
 .device {
   position: absolute;
-  border: 1px solid black;
+  border: 1px solid #ea580c;
   border-radius: 99999999px;
-  background: green;
+  background: #f97316;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -455,7 +595,15 @@ button#restart-button:active {
 .device-circle {
   position: absolute;
   border-radius: 999999999px;
-  border: 1px solid green;
+  background: rgba(251, 146, 60, 0.4);
+}
+
+.device-circle.animated {
+  animation-name: flash-opacity; 
+  animation-duration: 1s;
+  background: white;
+  opacity: 0;
+  z-index: 10;
 }
 
 .cursor-hover-circle, .cursor-hover-point {
@@ -465,16 +613,18 @@ button#restart-button:active {
 .cursor-hover-point {
   position: absolute;
   border: 1px solid black;
+  background: black;
   border-radius: 99999px;
   z-index: 20;
 }
+
 
 .cursor-hover-point-text {
   position: absolute;
   width: 30px;
   height: 24px;
-  bottom: 14px;
-  left: -12px;
+  bottom: 20px;
+  left: -8px;
   text-align: center;
   font-weight: bold;
   background: black;
@@ -494,12 +644,17 @@ button#restart-button:active {
 
 .cursor-hover-circle {
   position: absolute;
-  border: 1px solid black;
   border-radius: 99999px;
 }
 
 .good-cursor .cursor-hover-circle {
-  background: rgba(0, 0, 255, 0.2);
+  border: 1px solid #38bdf8;
+  background: rgba(125, 211, 252, 0.25);
+}
+
+.evil-cursor .cursor-hover-circle {
+  border: 1px solid #fda4af;
+  background: rgba(253, 164, 175, 0.25);
 }
 
 #attached-cursor-layer {
