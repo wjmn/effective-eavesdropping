@@ -167,7 +167,7 @@ init settings =
     let
         evilMembers =
             Random.initialSeed settings.randomSeed
-                |> Random.step (generateEvilMembers defaultBoardSize settings.numEvilMembers)
+                |> Random.step (generateEvilMembers settings.memberValues defaultBoardSize settings.numEvilMembers)
                 |> Tuple.first
 
         heatmap =
@@ -379,14 +379,18 @@ specialValues =
 {-| Generate the initial people in the grid.
 The first X coordinates get higher values; the remainder get a value of 1.
 -}
-generateEvilMembers : BoardSize -> Int -> Generator (List EvilMember)
-generateEvilMembers boardSize numEvilMembers =
+generateEvilMembers : MemberValues -> BoardSize -> Int -> Generator (List EvilMember)
+generateEvilMembers memberValues boardSize numEvilMembers =
     let
         randomCoords =
             generateRandomCoords boardSize numEvilMembers
 
         values =
-            List.append specialValues (List.repeat (numEvilMembers - List.length specialValues) 1)
+            case memberValues of 
+                SpecialMembersPresent -> 
+                    List.append specialValues (List.repeat (numEvilMembers - List.length specialValues) 1)
+                AllEqual -> 
+                    List.repeat numEvilMembers 1
     in
     randomCoords
         |> Random.map (\coords -> List.map2 EvilMember coords values)
@@ -634,7 +638,7 @@ update msg game =
                     newGame |> withCmd (Task.attempt ReceivedBoardElement (Dom.getElement "evil-board"))
 
                 _ ->
-                    newGame |> withCmd (Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 100))
+                    newGame |> withCmd (Task.perform (\_ -> PauseThenMakeComputerMove) (Process.sleep 200))
 
 
 
@@ -930,10 +934,15 @@ viewGoodPhaseBoard game data =
                     ""
                 ComputerVsHuman -> 
                     "computer"
+        goodPhaseImg = 
+            case game.settings.playMode of 
+                HumanVsHuman -> "spy-card.png"
+                HumanVsComputer -> "spy-card-solo.png"
+                ComputerVsHuman -> "spy-card-computer.png"
     in
     div [ id "good-board-container", class "board-container" ]
-        [ 
-         div [ id "good-board", class "board", onClick GoodClickedSpyCoord ]
+        [ div [id "board-background"] []
+        , div [ id "good-board", class "board", onClick GoodClickedSpyCoord ]
             [ -- The heatmap
               div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
                 [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
@@ -959,8 +968,8 @@ viewGoodPhaseBoard game data =
 
             -- The cursor layer
             ]
-        , div [ id "good-phase-transition-card", class "phase-transition", class goodPhaseExtraClass] [ h1 [] [ text "GOOD Phase" ], div [] [ h2 [] [ text "GOOD: Place your spies!" ], h2 [] [ text "EVIL: Look away!" ] ], div [ class "small" ] [ text "The phase will start in 3 seconds." ] ]
-        , div [ id "good-phase-computer-card", class "phase-transition", class goodPhaseExtraClass] [ h1 [] [ text "GOOD Phase" ], div [] [ h2 [] [ text "GOOD: Computer is placing its spies!" ]], div [ class "small" ] [ text "" ] ]
+        , div [ id "good-phase-transition-card", class "phase-transition", class goodPhaseExtraClass] [ img [src goodPhaseImg, class "phase-transition-image"] [] ]
+        , div [ id "good-phase-computer-card", class "phase-transition", class goodPhaseExtraClass] [ img [src "spy-card-computer.png", class "phase-transition-image"]  []]
         ]
 
 
@@ -1138,7 +1147,8 @@ viewEvilPhaseBoard game data =
                     "computer"
     in
     div [ id "evil-board-container", class "board-container" ]
-        [ div [ id "evil-board", class "board", onClick EvilClickedAntispyCoord ]
+        [div [id "board-background"] []
+        , div [ id "evil-board", class "board", onClick EvilClickedAntispyCoord ]
             [ -- The heatmap
               div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
                 [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
@@ -1164,9 +1174,9 @@ viewEvilPhaseBoard game data =
 
             -- The cursor layer
             ]
-        , div [ id "good-phase-transition-card", class goodPhaseExtraClass, class "phase-transition" ] []
+        , div [ id "good-phase-transition-card", class goodPhaseExtraClass, class "phase-transition", style "display" "none" ] []
         , div [ id "evil-phase-transition-card", class "phase-transition" ]
-            [ h1 [] [ text "EVIL Phase" ], div [] [ h2 [] [ text "GOOD has placed their spies." ], h2 [] [ text "EVIL: Place your devices." ] ], div [ class "small" ] [ text "The phase will start in 3 seconds." ] ]
+            [ img [src "counterspy-card.png", class "phase-transition-image"] [] ]
         ]
 
 
@@ -1233,7 +1243,7 @@ viewCompletePhaseBoard game data score =
 
     in
     div [ id "complete-board-container", class "board-container" ]
-        [ div [ id "complete-board", class "board", onClick EvilClickedAntispyCoord ]
+        [ div [id "board-background"] [], div [ id "complete-board", class "board", onClick EvilClickedAntispyCoord ]
             [ -- The heatmap
               div [ classList [ ( "is-visible", game.showHeatmap ) ], class "board-layer-container heatmap-container" ]
                 [ Html.Lazy.lazy3 viewHeatmapLazy data.minValue data.maxValue data.heatmap ]
@@ -1269,10 +1279,10 @@ viewCompletePhaseStatus game data score =
     div [ id "complete-status", class "status" ]
         [ button [ onClick ToggleHeatmap, classList [ ( "is-selected", game.showHeatmap ) ] ] [ text "Toggle Heatmap" ]
         , h1 [] [ text "FINISHED!" ]
-        , h2 [] [ text "GOOD's FINAL SCORE" ]
+        , h2 [] [ text "SPY'S FINAL SCORE" ]
         , div [ id "complete-status-good-final-score", class "status-item" ]
             [ text (String.fromInt score.goodFinalScore) ]
-        , h2 [] [ text "Spies detected by EVIL" ]
+        , h2 [] [ text "Number of spies found:" ]
         , div [ id "complete-status-spies-found", class "status-item" ]
             [ text (String.fromInt score.numSpiesFound ++ "/" ++ String.fromInt game.settings.numSpies) ]
         ]

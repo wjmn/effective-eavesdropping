@@ -151,7 +151,7 @@ TODO: modify this function to include your own intro text.
 introText : Html Msg
 introText =
     div [ class "intro-text" ]
-        [ p [] [ text "Effective Eavesdropping is a two-player strategy game between GOOD and EVIL. GOOD aims to place spies at EVIL's banquet to maximise the people within their spies' listening radius. EVIL aims to place anti-spy devices to, ahem, eliminate spies who hide among them. Who will prevail?" ] ]
+        [ p [] [ text "It's Spies vs Counterspies. Who will win?" ] ]
 
 
 {-| The view function for the application. This function mostly just routes the view
@@ -170,20 +170,33 @@ view screen =
     case screen of
         SettingsScreen settings ->
             div [ id "settings-screen", class "screen" ]
-                [ div [ id "settings-modal" ]
+                [ div [class "background-image"] 
+                    [div [id "stars"] []
+                    ,div [id "stars2"] []
+                    ,div [id "stars3"] []
+                    ]
+                , div [ id "settings-modal" ]
                     [ div [ id "settings-modal-header" ]
                         [ h1 [ id "settings-modal-header-title" ] [ text "Effective Eavesdropping" ]
-                        , h2 [ id "settings-modal-header-team" ] [ text "wjmn" ]
                         ]
                     , div [ id "settings-modal-intro" ] [ introText ]
                     , div [ id "settings-modal-body" ] [ Settings.view settings |> Html.map SettingsMsg ]
                     , div [ id "settings-modal-footer" ] [ button [ id "start-game-button", onClick ClickedStartGame ] [ text "Start Game" ] ]
                     ]
+                , img [src "spy-card-computer.png", style "display" "none"] []
+                , img [src "spy-card.png", style "display" "none"] []
+                , img [src "spy-card-solo.png", style "display" "none"] []
+                , img [src "counterspy-card.png", style "display" "none"] []
                 ]
 
         GameplayScreen game ->
             div [ id "gameplay-screen", class "screen" ]
-                [ Game.view game |> Html.map GameplayMsg
+                [ div [class "background-image"] 
+                    [div [id "stars"] []
+                    ,div [id "stars2"] []
+                    ,div [id "stars3"] []
+                    ]
+                , Game.view game |> Html.map GameplayMsg
                 , div [ id "restart-button-container" ] [ button [ id "restart-button", onClick ClickedRestart ] [ text "Restart" ] ]
                 ]
 

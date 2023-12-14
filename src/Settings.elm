@@ -16,6 +16,7 @@ import Common exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import List exposing (member)
 
 
 
@@ -46,6 +47,7 @@ type alias Settings =
     { playMode : PlayMode
     , computerDifficulty : ComputerDifficulty
     , numEvilMembers : Int
+    , memberValues : MemberValues
     , numSpies : Int 
     , spyRadius: Float
     , numDevices : Int 
@@ -64,6 +66,7 @@ default =
     { playMode = HumanVsHuman
     , computerDifficulty = Easy
     , numEvilMembers = 250
+    , memberValues = SpecialMembersPresent
     , numSpies = 10
     , spyRadius = 10.0
     , numDevices = 10
@@ -82,6 +85,7 @@ type Msg
     = SetPlayMode PlayMode
     | SetComputerDifficulty ComputerDifficulty
     | SetNumPeople Int 
+    | SetMemberValues MemberValues
     | SetNumSpies Int
     | SetSpyRadius Float
     | SetNumDevices Int
@@ -104,6 +108,8 @@ update msg settings =
             { settings | computerDifficulty = value }
         SetNumPeople value ->
             { settings | numEvilMembers = value }
+        SetMemberValues value -> 
+            { settings | memberValues = value }
         SetNumSpies value ->
             { settings | numSpies = value }
         SetSpyRadius value ->
@@ -142,7 +148,7 @@ pickers settings =
         { label = "Play Mode"
         , onSelect = SetPlayMode
         , current = settings.playMode
-        , options = [ ("Human vs Human", HumanVsHuman), ("Human vs Computer", HumanVsComputer), ("Computer vs Human", ComputerVsHuman) ]
+        , options = [ ("2 Player Mode", HumanVsHuman), ("Spy Mode", HumanVsComputer), ("Counterspy Mode", ComputerVsHuman) ]
         }
     , pickChoiceButtons
         { label = "Computer Difficulty"
@@ -151,14 +157,19 @@ pickers settings =
         , options = [ ("Easy", Easy), ("Hard", Hard) ]
         }
     , inputInt
-        { label = "Number of EVIL Members at Banquet"
+        { label = "Number of Members at Gathering"
         , value = settings.numEvilMembers
         , min = 50
         , max = 500
         , onChange = SetNumPeople
         }
+    , pickChoiceButtons
+        { label = "Member Values"
+        , onSelect = SetMemberValues
+        , current = settings.memberValues
+        , options = [ ("5 Specials", SpecialMembersPresent), ("All Equal", AllEqual) ]}
     , inputInt
-        { label = "GOOD: Number of Spies"
+        { label = "Number of Spies"
         , value = settings.numSpies
         , min = 3
         , max = 16
@@ -172,7 +183,7 @@ pickers settings =
         , onChange = SetSpyRadius
         }
     , inputInt
-        { label = "EVIL: Number of Antispy Devices"
+        { label = "Number of Antispy Devices"
         , value = settings.numDevices
         , min = 3
         , max = 16
@@ -242,6 +253,29 @@ stringToComputerDifficulty string =
             Hard
         _ ->
             Easy
+
+type MemberValues
+     = SpecialMembersPresent
+     | AllEqual
+
+memberValuesToString : MemberValues -> String
+memberValuesToString memberValues =
+    case memberValues of
+        SpecialMembersPresent ->
+            "Special Members Present"
+        AllEqual ->
+            "All Equal"
+
+stringToMemberValues : String -> MemberValues
+stringToMemberValues string =
+    case string of
+        "Special Members Present" ->
+            SpecialMembersPresent
+        "All Equal" ->
+            AllEqual
+        _ ->
+            SpecialMembersPresent
+
 
 
 -- =============================================================================
@@ -503,7 +537,7 @@ viewPickerItem settings item =
         InputInt data ->
             let
                extraClass = 
-                    if data.label == "GOOD: Number of Spies" || data.label == "EVIL: Number of Antispy Devices" then
+                    if data.label == "Number of Spies" || data.label == "Number of Antispy Devices" || data.label == "Number of Members at Gathering" then
                         "half-width"
                     else
                         ""
@@ -560,8 +594,8 @@ viewPickerItem settings item =
                 ]
 
         PickChoiceButtons data ->
-            if data.label == "Play Mode" || ((settings.playMode /= HumanVsHuman) && (data.label == "Computer Difficulty")) then 
-                div [ class "setting-picker-item" ]
+            if data.label == "Play Mode"  || data.label == "Member Values" || ((settings.playMode /= HumanVsHuman) && (data.label == "Computer Difficulty")) then 
+                div [ class "setting-picker-item", classList [("half-width right", data.label == "Member Values")] ]
                     [ label [ class "setting-picker-item-label" ] [ text data.label ]
                     , div [ class "setting-picker-item-input setting-picker-item-input-buttons" ]
                         (List.map
