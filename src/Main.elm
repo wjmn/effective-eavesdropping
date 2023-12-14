@@ -169,12 +169,8 @@ view : Model -> Html Msg
 view screen =
     case screen of
         SettingsScreen settings ->
-            div [ id "settings-screen", class "screen" ]
-                [ div [class "background-image"] 
-                    [div [id "stars"] []
-                    ,div [id "stars2"] []
-                    ,div [id "stars3"] []
-                    ]
+            div [ id "settings-screen", class "screen crt" ]
+                [ div [class "background-image"]  [ ]
                 , div [ id "settings-modal" ]
                     [ div [ id "settings-modal-header" ]
                         [ h1 [ id "settings-modal-header-title" ] [ text "Effective Eavesdropping" ]
@@ -190,12 +186,8 @@ view screen =
                 ]
 
         GameplayScreen game ->
-            div [ id "gameplay-screen", class "screen" ]
-                [ div [class "background-image"] 
-                    [div [id "stars"] []
-                    ,div [id "stars2"] []
-                    ,div [id "stars3"] []
-                    ]
+            div [ id "gameplay-screen", class "screen crt" ]
+                [ div [class "background-image"]  []
                 , Game.view game |> Html.map GameplayMsg
                 , div [ id "restart-button-container" ] [ button [ id "restart-button", onClick ClickedRestart ] [ text "Restart" ] ]
                 ]

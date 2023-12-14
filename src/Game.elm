@@ -970,6 +970,7 @@ viewGoodPhaseBoard game data =
             ]
         , div [ id "good-phase-transition-card", class "phase-transition", class goodPhaseExtraClass] [ img [src goodPhaseImg, class "phase-transition-image"] [] ]
         , div [ id "good-phase-computer-card", class "phase-transition", class goodPhaseExtraClass] [ img [src "spy-card-computer.png", class "phase-transition-image"]  []]
+        , div [ id "evil-phase-transition-card", class "phase-transition", style "opacity" "0"] [ img [src "counterspy-card.png", class "phase-transition-image"] [] ]
         ]
 
 
@@ -988,7 +989,7 @@ heatmapColour minValue maxValue value =
         normalisedValue =
             0.25 * toFloat (value - minValue) / toFloat (maxValue - minValue)
     in
-    "rgba(0, 255, 0, " ++ String.fromFloat normalisedValue ++ ")"
+    "rgba(0, 255, 255, " ++ String.fromFloat normalisedValue ++ ")"
 
 
 {-| View a single heatmap square
@@ -1175,8 +1176,7 @@ viewEvilPhaseBoard game data =
             -- The cursor layer
             ]
         , div [ id "good-phase-transition-card", class goodPhaseExtraClass, class "phase-transition", style "display" "none" ] []
-        , div [ id "evil-phase-transition-card", class "phase-transition" ]
-            [ img [src "counterspy-card.png", class "phase-transition-image"] [] ]
+        , div [ id "evil-phase-transition-card", class "phase-transition" ] [ img [src "counterspy-card.png", class "phase-transition-image"] [] ]
         ]
 
 
@@ -1184,7 +1184,7 @@ viewAntispyDevice : String -> Float -> BoardSize -> Spy -> Html Msg
 viewAntispyDevice extraClasses radius boardSize spy =
     let
         width =
-            0.01
+            0.011
 
         left =
             toPct (spy.x / boardSize - width / 2)
